@@ -1,0 +1,567 @@
+import random
+from functools import reduce
+random.seed(6)
+
+##############################################################################
+# This section of code implements Part 1. Feel free to use your own solution #
+##############################################################################
+
+def rollDice( sides, number ):
+    rolls=[random.randrange(sides)+1 for i in range(number)]
+    print("The dice roll",rolls)
+    return reduce(lambda x, y: x+y, rolls)
+
+# Weapon Classes
+class Weapon:
+    
+    def setDescription( self, d ):
+        self.description = d
+
+    def getDescription( self ):
+        return self.description
+
+class Fist(Weapon):
+    def damage(self):
+        return rollDice(4,1)
+
+class Rock(Weapon):
+    def damage(self):
+        return rollDice(4,2)
+    
+class Club(Weapon):
+    def damage(self):
+        return rollDice(6,3)
+    
+class Sword(Weapon):
+    def damage(self):
+        return rollDice(8,4)
+
+# Character classes
+class Character:
+    def __init__(self):
+        self.name = ""
+        self.health = 0
+
+    def setHealth(self, h):
+        self.health = h
+
+    def getHealth(self):
+        return self.health
+
+    def setName( self, n ):
+        self.name = n
+
+    def getName(self):
+        return self.name
+
+class Player(Character):
+    def __init__(self):
+        super().__init__()
+        fist = Fist()
+        fist.setDescription("your fist")
+        self.carried_weapon = fist
+
+    def moveNorth(self):
+        i,j = self.getCurrentCoordinates()
+        if i < num_columns - 1:
+            Map[i+1][j].addCharacter(self)
+            Map[i][j].removeCharacter(self)
+            return True
+        else:
+            return False
+            
+    def moveSouth(self):
+        i,j = self.getCurrentCoordinates()
+        if i > 0:
+            Map[i-1][j].addCharacter(self)
+            Map[i][j].removeCharacter(self)
+            return True
+        else:
+            return False
+            
+    def moveWest(self):
+        i,j = self.getCurrentCoordinates()
+        if j > 0:
+            Map[i][j-1].addCharacter(self)
+            Map[i][j].removeCharacter(self)
+            return True
+        else:
+            return False
+        
+    def moveEast(self):
+        i,j = self.getCurrentCoordinates()
+        if j < num_rows - 1:
+            Map[i][j+1].addCharacter(self)
+            Map[i][j].removeCharacter(self)
+            return True
+        else:
+            return False
+            
+    def hit(self, target):
+        target.setHealth( target.getHealth() - self.carried_weapon.damage() )
+
+    def take(self, w):
+        self.carried_weapon = w
+
+    def rescue(self, c):
+        if type(c) == McGuffin:
+            return True
+
+    def getCurrentCoordinates(self):
+        for i in range(num_columns):
+            for j in range(num_rows):
+                if self in Map[i][j].getCharacters():
+                    return i, j
+                
+    def getCurrentLocation(self):
+        i, j = self.getCurrentCoordinates()
+        return Map[i][j]
+
+class Troll(Character):
+    def __init__(self):
+        super().__init__()
+    
+    def hit(self,  target ):
+        target.setHealth( target.getHealth() - rollDice(6,2) )
+
+class Imp(Character):
+    def __init__(self):
+        super().__init__()
+    
+    def hit(self, target ):
+        target.setHealth( target.getHealth() - rollDice(6,1) )
+
+class McGuffin(Character):
+    pass
+
+
+
+##############################################################################
+# The following code implements Part 2 of the specification: The Game Map    #
+##############################################################################
+
+class Location:
+
+    def __init__(self): 
+        self.characters = []
+        self.weapon = None
+        self.description = ""
+
+    def addCharacter( self, c ):
+        self.characters.append( c )
+        
+    def removeCharacter( self, c ):
+        self.characters.remove( c )
+        
+    def setWeapon( self, w ):
+        if ( self.weapon != None ):
+            print("Warning: weapon overwritten")
+        self.weapon = w
+
+    def getWeapon( self ):
+        return self.weapon
+        
+    def removeWeapon( self, w ):
+        self.weapon = None
+
+    def getCharacters(self):
+        return self.characters
+        
+    def print( self ):
+        # Print a description of the location
+        print( self.description )
+
+        # Print a list of characters here
+        for i in self.characters:
+            if isinstance( i, Troll ):
+                print( "A troll named", i.getName() )
+            elif isinstance( i, Imp ):
+                print( "An imp named", i.getName() )
+            elif isinstance( i, McGuffin ): 
+                print( "Billy McGuffin!" )
+            elif isinstance( i, Player ): 
+                pass
+
+        # Print any weapons
+        if not self.getWeapon() == None:
+            print( self.getWeapon().getDescription() )
+
+# Define the description lists
+            
+description_list = [
+    "This area is dimly lit with mossy walls.",
+    "A dark area with a slimy floor.",
+    "A hole in the roof lets the sunlight in illuminating the area.",
+    "The floor here is sandy.",
+    "The walls are covered with glowing fungi.",
+    "A burned out fire-pit is at the centre of this area.",
+    "An area with stalagmites and stalactites.",
+    "The floor is streaked with multicoloured marble."
+]
+
+troll_names = [ "Basalt", "Granite", "Obsidian", "Tom", "Bert", "William", "Adelaide", "Alice", "Betty" ]
+imp_names = [ "Biorite", "Gabbro", "Pegmatite", "Peridotite", "Alacranite", "Dacite", "Diorite" ]
+
+# Add some rocks
+def addRocks( num_rocks ):
+    for i in range( num_rocks ):
+        rock = Rock()
+        rock.description = "A rough looking rock"
+    
+        # Keep trying random locations until we find one where Weapon is none. Then put the weapon there.
+        # This works as long as the number of clubs, rocks, and swords is less than the size of the Map.
+        # Otherwise it will cause an infinite loop
+        random_location = Map[ random.randint( 0, num_columns - 1 ) ][ random.randint( 0, num_rows - 1 ) ]
+        while random_location.getWeapon() != None:
+            # print("Location has no room for another weapon")
+            random_location = Map[ random.randint( 0, num_columns - 1 ) ][ random.randint( 0, num_rows - 1 ) ]
+        random_location.setWeapon(rock)
+    
+# Add some clubs
+def addClubs( num_clubs ):
+
+    for i in range( num_clubs ):
+        club = Club()
+        club.description = "A heavy club"
+        
+        # Keep trying random locations until we find one where Weapon is none. Then put the weapon there.
+        # This works as long as the number of clubs, rocks, and swords is less than the size of the Map.
+        # Otherwise it will cause an infinite loop
+        random_location = Map[ random.randint( 0, num_columns - 1 ) ][ random.randint( 0, num_rows - 1 ) ]
+        while random_location.getWeapon() != None:
+            #print("Location has no room for another weapon")
+            random_location = Map[ random.randint( 0, num_columns - 1 ) ][ random.randint( 0, num_rows - 1 ) ]
+        random_location.setWeapon(club)
+
+# Add swords
+def addSwords( num_swords ):
+    for i in range( num_swords ):
+        sword = Sword()
+        sword.description = "A bright sword"
+
+        # Keep trying random locations until we find one where Weapon is none. Then put the weapon there.
+        # This works as long as the number of clubs, rocks, and swords is less than the size of the Map.
+        # Otherwise it will cause an infinite loop
+        random_location = Map[ random.randint( 0, num_columns - 1 ) ][ random.randint( 0, num_rows - 1 ) ]
+        while random_location.getWeapon() != None:
+            #print("Location has no room for another weapon")
+            random_location = Map[ random.randint( 0, num_columns - 1 ) ][ random.randint( 0, num_rows - 1 ) ]
+        random_location.setWeapon(sword)
+
+
+
+def printMap():
+    for i in range( num_columns ):
+        for j in range( num_rows ):
+            print( "===============================" )
+            print( "Showing location",i, j )
+            Map[i][j].print()
+
+            
+# Create the map full of locations
+num_columns = 4
+num_rows = 4
+
+Map = [[Location() for i in range( num_columns )] for j in range( num_rows )]
+            
+# Populate the map
+
+for i in range( num_columns ):
+    for j in range( num_rows ):
+        Map[i][j].description = description_list[ random.randint( 0, len(description_list)-1 ) ]
+        
+# Add some trolls to the map        
+num_trolls = 5
+for i in range( num_trolls ):
+    troll = Troll()
+    troll.setName( troll_names[ random.randint( 0,len(troll_names) - 1)] )
+    troll.setHealth(10)
+    Map[ random.randint( 0, num_columns - 1) ][ random.randint( 0, num_rows - 1) ].addCharacter(troll)
+
+# Add some imps to the map        
+num_imps = 3
+for i in range( num_imps ):
+    imp = Imp()
+    imp.setName( imp_names[ random.randint( 0,len(imp_names) - 1)] )
+    imp.setHealth(5)
+    Map[ random.randint( 0, num_columns - 1 ) ][ random.randint( 0, num_rows - 1 ) ].addCharacter(imp)
+    
+# Add the player
+player = Player()
+player.setHealth( 40 )
+Map[ random.randint( 0, num_columns - 1 ) ][ random.randint( 0, num_rows - 1 ) ].addCharacter(player)
+
+# Add weapons
+addRocks(3)
+addSwords(2)
+addClubs(3)
+
+# Add Billy McGuffin
+billy = McGuffin()
+Map[ random.randint( 0, num_columns - 1 ) ][ random.randint( 0, num_rows - 1 ) ].addCharacter(billy)
+
+
+# Code to test what we have written
+
+# Function to check that there are the right number of trolls on the map
+def check_trolls():
+    
+    # Search through all the lists of characters at each location for trolls
+    trolls_found = 0
+    for i in range(len(Map)):
+        for j in range(len(Map[0])):
+            for k in Map[i][j].getCharacters():
+                if isinstance(k, Troll):
+                    print("Found troll at coordinate",i,j)
+                    trolls_found += 1
+                    
+    print("Found", trolls_found, "trolls on the map.")
+                    
+    return trolls_found == 5
+
+# Function to check that there are the right number of imps on the map
+def check_imps():
+    
+    # Search through all the lists of characters at each location for imps
+    imps_found = 0
+    for i in range(len(Map)):
+        for j in range(len(Map[0])):
+            for k in Map[i][j].getCharacters():
+                if isinstance(k, Imp):
+                    print("Found imp at coordinate",i,j)
+                    imps_found += 1
+                    
+    print("Found", imps_found, "imps on the map.")
+   
+    return imps_found == 3
+
+# Uncomment the next line to print the state of the whole map
+#printMap()
+
+### Game Banner
+def printBanner():
+    print("  █████▒██▓ ███▄    █   ▄████  ▄▄▄       ██▓      ██████     ▄████▄   ▄▄▄    ██▒   █▓▓█████ ")
+    print("▓██   ▒▓██▒ ██ ▀█   █  ██▒ ▀█▒▒████▄    ▓██▒    ▒██    ▒    ▒██▀ ▀█  ▒████▄ ▓██░   █▒▓█   ▀ ")
+    print("▒████ ░▒██▒▓██  ▀█ ██▒▒██░▄▄▄░▒██  ▀█▄  ▒██░    ░ ▓██▄      ▒▓█    ▄ ▒██  ▀█▄▓██  █▒░▒███   ")
+    print("░▓█▒  ░░██░▓██▒  ▐▌██▒░▓█  ██▓░██▄▄▄▄██ ▒██░      ▒   ██▒   ▒▓▓▄ ▄██▒░██▄▄▄▄██▒██ █░░▒▓█  ▄ ")
+    print("░▒█░   ░██░▒██░   ▓██░░▒▓███▀▒ ▓█   ▓██▒░██████▒▒██████▒▒   ▒ ▓███▀ ░ ▓█   ▓██▒▒▀█░  ░▒████▒")
+    print(" ▒ ░   ░▓  ░ ▒░   ▒ ▒  ░▒   ▒  ▒▒   ▓▒█░░ ▒░▓  ░▒ ▒▓▒ ▒ ░   ░ ░▒ ▒  ░ ▒▒   ▓▒█░░ ▐░  ░░ ▒░ ░")
+    print(" ░      ▒ ░░ ░░   ░ ▒░  ░   ░   ▒   ▒▒ ░░ ░ ▒  ░░ ░▒  ░ ░     ░  ▒     ▒   ▒▒ ░░ ░░   ░ ░  ░")
+    print(" ░ ░    ▒ ░   ░   ░ ░ ░ ░   ░   ░   ▒     ░ ░   ░  ░  ░     ░          ░   ▒     ░░     ░   ")
+    print("        ░           ░       ░       ░  ░    ░  ░      ░     ░ ░            ░  ░   ░     ░  ░")
+    print("A CS151 Text Adventure Game                                 ░                    ░          ")
+    
+### Player lost
+def GameLost():
+    print("▓██   ██▓ ▒█████   █    ██     ██▓     ▒█████    ██████ ▄▄▄█████▓")
+    print(" ▒██  ██▒▒██▒  ██▒ ██  ▓██▒   ▓██▒    ▒██▒  ██▒▒██    ▒ ▓  ██▒ ▓▒")
+    print("  ▒██ ██░▒██░  ██▒▓██  ▒██░   ▒██░    ▒██░  ██▒░ ▓██▄   ▒ ▓██░ ▒░")
+    print("  ░ ▐██▓░▒██   ██░▓▓█  ░██░   ▒██░    ▒██   ██░  ▒   ██▒░ ▓██▓ ░ ")
+    print("  ░ ██▒▓░░ ████▓▒░▒▒█████▓    ░██████▒░ ████▓▒░▒██████▒▒  ▒██▒ ░ ")
+    print("   ██▒▒▒ ░ ▒░▒░▒░ ░▒▓▒ ▒ ▒    ░ ▒░▓  ░░ ▒░▒░▒░ ▒ ▒▓▒ ▒ ░  ▒ ░░   ")
+    print(" ▓██ ░▒░   ░ ▒ ▒░ ░░▒░ ░ ░    ░ ░ ▒  ░  ░ ▒ ▒░ ░ ░▒  ░ ░    ░    ")
+    print(" ▒ ▒ ░░  ░ ░ ░ ▒   ░░░ ░ ░      ░ ░   ░ ░ ░ ▒  ░  ░  ░    ░      ")
+    print(" ░ ░         ░ ░     ░            ░  ░    ░ ░        ░           ")
+    print(" ░ ░                                                             ")
+    print()
+    print("Game Over! You were defeated by Fingal's Cave! Better luck next time. Thanks for playing.")
+    exit()
+
+### Player won
+def GameWon():
+    print("__   __                                  _ ")
+    print("\ \ / /                                 | |")
+    print(" \ V /___  _   _  __      _____  _ __   | |")
+    print("  \ // _ \| | | | \ \ /\ / / _ \| '_ \  | |")
+    print("  | | (_) | |_| |  \ V  V / (_) | | | | |_|")
+    print("  \_/\___/ \__,_|   \_/\_/ \___/|_| |_| (_)")
+    print()                                       
+                                           
+    print("Congratulations! You found Billy McGuffin and led him out of Fingal's Cave! Thanks for playing.")
+    exit()
+    
+###################################################################
+#                                                                 #
+#         Game Logic: action-response loop                        #
+#                                                                 #
+###################################################################
+
+printBanner()
+
+# An input-output loop to test the game
+def action_response_loop():
+    while True:
+        print("==============================================")
+        print("Coordinates:", player.getCurrentCoordinates())
+        print("----------------------------------------------")
+        print("You see:")
+        current_location = player.getCurrentLocation()
+        current_location.print()
+        print()
+        
+        # The try... catch... is for ZyBooks compatability 
+        try: 
+            action = input("Enter an action (E, W, N, S, hit, rescue, take, hint or quit): ")
+        except EOFError:
+            exit()
+        
+
+        ####################################################################
+        #            Handle Non-Player Character Actions                   #
+        ####################################################################
+
+        # Copy the characters into an npc list. We make a copy so modifying it doesn´t
+        # change the map
+        npc_list = current_location.getCharacters().copy()
+
+        # Remove billy and the player from the NPC list
+        # Trying to remove a element that is not in the list gives an error.
+        # So only remove billy if he is actually in the npc list.
+        if billy in npc_list: 
+            npc_list.remove( billy )
+
+        # Ditto the player, otherwise we will hit ourself with our own weapon!
+        if billy in npc_list: 
+            npc_list.remove( player )
+        
+        for npc in npc_list:
+            # The npc hits the player
+            current_player_health = player.getHealth()
+            npc.hit(player)
+            
+            # Print NPC's name " hits you for " amount of hit
+            print(npc.getName(),
+                  "hits you for",
+                  player.getHealth() - current_player_health
+            )
+            
+            # Print how much health the player has left
+            print( "You have", player.getHealth(), "health left." )
+            
+            # Check if the player has lost all their health
+            if player.getHealth() <= 0:
+                # If the player has less than zero health then end the game
+                GameLost()
+                                
+        ####################################################################
+        #                      Player Actions Come Next                    #
+        ####################################################################
+
+        
+        ####################################################################
+        #                      Handle Player Movement                      #
+        ####################################################################
+        if action == "N":
+            if player.moveNorth():
+                print( "You go north" )
+            else:
+                print("You could not go north")
+        elif action == "S":
+            if player.moveSouth():
+                print( "You go south" )
+            else:
+                print("You could not go south")
+        elif action == "E":
+            if player.moveEast():
+                print( "You go east" )
+            else:
+                print("You could not go east")
+        elif action == "W":
+            if player.moveWest():
+                print( "You go west" )
+            else:
+                print("You could not go west")
+
+        ####################################################################
+        #                Handle Player "Take" Action                         #
+        ####################################################################
+        elif action == "take":
+            current_location = player.getCurrentLocation()
+            weapon = current_location.getWeapon()
+            if weapon == None:
+                print("There is nothing to take here.")
+            else:
+                # Give the weapon to the player
+                # YOU IMPLEMENT THIS
+                pass
+
+                # Remove the weapon from the players current location
+                # YOU IMPLEMENT THIS
+       
+                
+        ####################################################################
+        #                Handle Player "Hit" Action                          #
+        ####################################################################
+        elif action == "hit":
+            current_location = player.getCurrentLocation()
+
+            # We make a copy so that when we remove characters we don´t remove them from the map
+            # just from the hit list
+            hit_list = current_location.getCharacters().copy()
+
+            # Remove Billy McGuffin and the player from the hit list
+            # (so they don´t get hit)
+            # Check if player is in the list (should always be true)
+            if player in hit_list:
+                hit_list.remove( player )
+
+            # Check if Billy is in the list. We don´t want to hit him!
+            # YOU IMPLEMENT THIS
+                
+            
+            # Check if there is anyone left on the hit list
+            if len( hit_list ) > 0:
+                # Target the first character on the hit list
+                target = hit_list[0]
+
+                # Get the target's current health so we can use it later
+                current_target_health = target.getHealth()
+                
+                # The player hits the target
+                # YOU IMPLEMENT THIS
+                
+                # Print "You hit " targets name " with the " weapon description " for " amount of hit
+                print("You hit", target.getName(),
+                      "with", player.carried_weapon.getDescription(),
+                      "for", target.getHealth() - current_target_health
+                )
+
+                # Print how much health the target has left
+                print( target.getName(), "has", target.getHealth(), "health left." )
+                
+                # Check if the character that was hit has lost all its health
+                # YOU IMPLEMENT THIS
+                
+                    # If the character has less than zero health then remove the character from the
+                    # current location
+                    # YOU IMPLEMENT THIS
+
+                    # Print "target's name has disappeared!" but replace target's name with
+                    # the actual targets name
+                    # YOU IMPLEMENT THIS
+             
+            else:
+              # If there are no characters on the hit list then only the player and/or Billy
+              # were here. So print "There was no one here you want to hit!" 
+              print("There is no one here you want to hit!")      
+        
+            
+
+        ####################################################################
+        #                Handle Player Rescue Action                       #
+        ####################################################################
+        elif action == "rescue":
+            # YOU IMPLEMENT THIS
+            pass
+        
+        elif action == "hint":
+            printMap()
+        elif action == "quit":
+            print("You quit the game!")
+            break
+        else:
+            print(action, "is not a valid action.")
+
+
+# Uncomment the following line to play the game
+action_response_loop()
